@@ -1,9 +1,9 @@
 // ==== utils.js ====
 function isColliding(a, b) {
     return a.x < b.x + b.width &&
-           a.x + a.width > b.x &&
-           a.y < b.y + b.height &&
-           a.y + a.height > b.y;
+        a.x + a.width > b.x &&
+        a.y < b.y + b.height &&
+        a.y + a.height > b.y;
 }
 
 function createParticles(x, y, color = 'orange') { // Adiciona parâmetro de cor
@@ -45,7 +45,10 @@ class Player {
         this.fireRate = 500; // Tempo entre tiros em ms
         this.lastShotTime = 0;
     }
-    move(keys) {
+     move(keys) {
+        const oldX = this.x;
+        const oldY = this.y;
+
         if (keys['w'] || keys['ArrowUp']) this.y -= this.speed;
         if (keys['s'] || keys['ArrowDown']) this.y += this.speed;
         if (keys['a'] || keys['ArrowLeft']) this.x -= this.speed;
@@ -54,6 +57,14 @@ class Player {
         // Limita o jogador dentro do canvas
         this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
         this.y = Math.max(0, Math.min(canvas.height - this.height, this.y));
+
+        for (const obs of obstaculos) {
+            if (isColliding(this, obs)) {
+                this.x = oldX;
+                this.y = oldY;
+                break;
+            }
+        }
     }
     shoot() {
         const now = Date.now();
@@ -97,12 +108,29 @@ class Zombie {
     }
     moveToward(player) {
         if (!this.alive) return;
+
         const dx = player.x - this.x;
         const dy = player.y - this.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 1) { // Evita divisão por zero
-            this.x += (dx / dist) * this.speed;
-            this.y += (dy / dist) * this.speed;
+            const vx = (dx / dist) * this.speed;
+            const vy = (dy / dist) * this.speed;
+
+            const newX = this.x + vx;
+            const newY = this.y + vy;
+
+            const tempRect = {
+                x: newX,
+                y: newY,
+                width: this.width,
+                height: this.height
+            };
+
+            const Willcolide = obstaculos.some(obs => isColliding(tempRect, obs));
+            if (!Willcolide) {
+                this.x = newX;
+                this.y = newY;
+            }
         }
     }
     update() {
@@ -182,6 +210,19 @@ const shopItems = [
         description: "Alta cadência de tiro, dano moderado."
     }
 ];
+
+// ==== obstaculos.js ====
+
+const elementosObstaculo = document.querySelectorAll('.obstaculo');
+
+const obstaculos = Array.from(elementosObstaculo).map(el => {
+    return {
+        x: parseInt(el.style.left),
+        y: parseInt(el.style.top),
+        width: el.offsetWidth,
+        height: el.offsetHeight
+    };;
+});
 
 // ==== main.js ====
 const canvas = document.getElementById("gameCanvas");
@@ -372,6 +413,15 @@ function draw() {
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
+    });
+
+    // Desenha obstaculos
+    obstaculos.forEach(obs => {
+        ctx.fillStyle = "gray";
+        ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+        ctx.strokeStyle = 'green';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
     });
 
     // Atualiza HUD

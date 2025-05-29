@@ -129,3 +129,11 @@ progress#levelProgress::-moz-progress-bar {
   background-color: #00cc00;
   border-radius: 5px;
 }
+
+/* Os obstaculos (caixas) */
+.obstaculo {
+    width: 60px;
+    height: 60px;
+    position: absolute;
+    box-sizing: border-box;
+}
