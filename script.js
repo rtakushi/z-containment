@@ -1,9 +1,9 @@
 // ==== utils.js ====
 function isColliding(a, b) {
     return a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y;
+           a.x + a.width > b.x &&
+           a.y < b.y + b.height &&
+           a.y + a.height > b.y;
 }
 
 function createParticles(x, y, color = 'orange') { // Adiciona parâmetro de cor
@@ -45,10 +45,7 @@ class Player {
         this.fireRate = 500; // Tempo entre tiros em ms
         this.lastShotTime = 0;
     }
-     move(keys) {
-        const oldX = this.x;
-        const oldY = this.y;
-
+    move(keys) {
         if (keys['w'] || keys['ArrowUp']) this.y -= this.speed;
         if (keys['s'] || keys['ArrowDown']) this.y += this.speed;
         if (keys['a'] || keys['ArrowLeft']) this.x -= this.speed;
@@ -66,10 +63,12 @@ class Player {
             }
         }
     }
-    shoot() {
+    // ALTERADO: Método shoot agora aceita targetX e targetY
+    shoot(targetX, targetY) {
         const now = Date.now();
         if (now - this.lastShotTime > this.fireRate) {
-            bullets.push(new Bullet(this.x + this.width / 2 - 5, this.y + this.height / 2 - 5));
+            // ALTERADO: Cria a bala com a direção do alvo
+            bullets.push(new Bullet(this.x + this.width / 2 - 5, this.y + this.height / 2 - 5, targetX, targetY));
             this.lastShotTime = now;
             shotSound.play();
         }
@@ -78,16 +77,26 @@ class Player {
 
 // ==== Bullet.js ====
 class Bullet {
-    constructor(x, y) {
+    // ALTERADO: Construtor agora aceita targetX e targetY para direção
+    constructor(x, y, targetX, targetY) {
         this.x = x;
         this.y = y;
         this.width = 10;
         this.height = 10;
         this.speed = 8; // Velocidade da bala um pouco maior
         this.alpha = 1;
+
+        // ALTERADO: Calcula a direção da bala em relação ao alvo
+        const dx = targetX - this.x;
+        const dy = targetY - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        this.speedX = (dx / distance) * this.speed; // Componente X da velocidade
+        this.speedY = (dy / distance) * this.speed; // Componente Y da velocidade
     }
     update() {
-        this.y -= this.speed;
+        // ALTERADO: Move a bala usando os componentes X e Y da velocidade
+        this.x += this.speedX;
+        this.y += this.speedY;
         this.alpha = Math.max(0, this.alpha - 0.02);
     }
 }
@@ -176,13 +185,27 @@ const shopItems = [
             player.weapon = "Espingarda";
             player.bulletDamage = 30; // Dano por projétil
             player.fireRate = 800; // Cadência mais lenta
-            player.shoot = () => { // Sobrescreve a função shoot para espingarda
+            // ALTERADO: Sobrescreve a função shoot para espingarda, aceitando targetX e targetY
+            player.shoot = (targetX, targetY) => {
                 const now = Date.now();
                 if (now - player.lastShotTime > player.fireRate) {
                     // Três projéteis em um pequeno arco
-                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5));
-                    bullets.push(new Bullet(player.x + player.width / 2 - 5 - 10, player.y + player.height / 2 - 5));
-                    bullets.push(new Bullet(player.x + player.width / 2 - 5 + 10, player.y + player.height / 2 - 5));
+                    const dx = targetX - (player.x + player.width / 2);
+                    const dy = targetY - (player.y + player.height / 2);
+                    const angle = Math.atan2(dy, dx); // Ângulo para o mouse
+
+                    const spread = 0.3; // Raio em radianos para espalhar os tiros
+
+                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5,
+                                            player.x + player.width / 2 + Math.cos(angle - spread) * 100, // Alvo com spread negativo
+                                            player.y + player.height / 2 + Math.sin(angle - spread) * 100));
+                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5,
+                                            player.x + player.width / 2 + Math.cos(angle) * 100, // Alvo central
+                                            player.y + player.height / 2 + Math.sin(angle) * 100));
+                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5,
+                                            player.x + player.width / 2 + Math.cos(angle + spread) * 100, // Alvo com spread positivo
+                                            player.y + player.height / 2 + Math.sin(angle + spread) * 100));
+
                     player.lastShotTime = now;
                     shotgunSound.play();
                 }
@@ -198,10 +221,12 @@ const shopItems = [
             player.weapon = "Rifle de Assalto";
             player.bulletDamage = 35;
             player.fireRate = 200; // Cadência alta
-            player.shoot = () => { // Sobrescreve a função shoot para rifle
+            // ALTERADO: Sobrescreve a função shoot para rifle, aceitando targetX e targetY
+            player.shoot = (targetX, targetY) => {
                 const now = Date.now();
                 if (now - player.lastShotTime > player.fireRate) {
-                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5));
+                    // ALTERADO: Cria a bala com a direção do alvo
+                    bullets.push(new Bullet(player.x + player.width / 2 - 5, player.y + player.height / 2 - 5, targetX, targetY));
                     player.lastShotTime = now;
                     rifleSound.play();
                 }
@@ -236,6 +261,10 @@ const player = new Player(canvas.width / 2 - 25, canvas.height / 2 - 25);
 let currentLevel = 1;
 let isPaused = false;
 let gameStarted = false;
+
+// NOVO: Variáveis para armazenar a posição do mouse
+let mouseX = 0;
+let mouseY = 0;
 
 // Sons
 const deathSound = new Audio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_b97c1d122f.mp3?filename=impact-punch-7186.mp3');
@@ -340,7 +369,8 @@ function updateBullets() {
             }
         }
     });
-    bullets = bullets.filter(b => b.y > -b.height); // Remove balas que saíram da tela
+    // ALTERADO: A bala não precisa mais sair da tela apenas por Y
+    bullets = bullets.filter(b => b.x > -b.width && b.x < canvas.width + b.width && b.y > -b.height && b.y < canvas.height + b.height);
 }
 
 function checkZombiePlayerCollision() {
@@ -479,6 +509,25 @@ function gameLoop() {
     requestAnimationFrame(gameLoop);
 }
 
+// NOVO: Event listener para movimento do mouse para capturar as coordenadas
+canvas.addEventListener("mousemove", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left; // Coordenada X do mouse relativa ao canvas
+    mouseY = e.clientY - rect.top;  // Coordenada Y do mouse relativa ao canvas
+});
+
+// NOVO: Event listener para o clique do mouse (botão esquerdo) para disparo
+canvas.addEventListener("mousedown", (e) => {
+    // Verifica se o jogo está iniciado, o jogador está vivo e não está pausado
+    if (gameStarted && player.alive && !isPaused) {
+        // e.button === 0 corresponde ao botão esquerdo do mouse
+        if (e.button === 0) {
+            player.shoot(mouseX, mouseY); // Dispara na direção do mouse
+        }
+    }
+});
+
+// ALTERADO: Mantém o keydown para outras ações (pausa, loja), mas remove o disparo
 document.addEventListener("keydown", (e) => {
     keys[e.key] = true;
     if (e.key === " ") player.shoot(); // Chama o método shoot do player
